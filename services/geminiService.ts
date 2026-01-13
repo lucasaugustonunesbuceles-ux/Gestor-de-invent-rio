@@ -2,7 +2,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { InventoryItem } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
+// Always initialize GoogleGenAI using the process.env.API_KEY string directly.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeInventory = async (items: InventoryItem[]) => {
   const model = "gemini-3-flash-preview";
@@ -15,6 +16,7 @@ export const analyzeInventory = async (items: InventoryItem[]) => {
   Array<{ title: string, description: string, priority: 'low' | 'medium' | 'high' }>`;
 
   try {
+    // Calling ai.models.generateContent with the model name and prompt directly.
     const response = await ai.models.generateContent({
       model,
       contents: prompt,
@@ -25,9 +27,18 @@ export const analyzeInventory = async (items: InventoryItem[]) => {
           items: {
             type: Type.OBJECT,
             properties: {
-              title: { type: Type.STRING },
-              description: { type: Type.STRING },
-              priority: { type: Type.STRING, enum: ['low', 'medium', 'high'] },
+              title: { 
+                type: Type.STRING,
+                description: 'The title of the inventory insight.'
+              },
+              description: { 
+                type: Type.STRING,
+                description: 'The detailed description of the insight.'
+              },
+              priority: { 
+                type: Type.STRING,
+                description: 'The priority level (low, medium, or high).'
+              },
             },
             required: ['title', 'description', 'priority'],
           },
@@ -35,7 +46,9 @@ export const analyzeInventory = async (items: InventoryItem[]) => {
       },
     });
 
-    return JSON.parse(response.text || "[]");
+    // Extracting the text output directly from the .text property (not a method).
+    const text = response.text;
+    return JSON.parse(text || "[]");
   } catch (error) {
     console.error("Erro ao analisar inventário:", error);
     return [
