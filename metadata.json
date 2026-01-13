@@ -1,0 +1,7 @@
+{
+  "name": "Gestor de Inventário de Materiais",
+  "description": "Uma aplicação moderna para gerenciar e analisar seu estoque de materiais de escritório, com dashboard interativo e assistência inteligente via Gemini AI.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
