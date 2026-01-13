@@ -1,13 +1,36 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { InventoryItem } from './types';
 import { INITIAL_ITEMS } from './constants';
 import InventoryTable from './components/InventoryTable';
 import InventoryDashboard from './components/InventoryDashboard';
 import AIAssistant from './components/AIAssistant';
+import BackupView from './components/BackupView';
 
 const App: React.FC = () => {
-  const [items, setItems] = useState<InventoryItem[]>(INITIAL_ITEMS);
+  const [items, setItems] = useState<InventoryItem[]>(() => {
+    const saved = localStorage.getItem('inventory_data');
+    return saved ? JSON.parse(saved) : INITIAL_ITEMS;
+  });
+  
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
+  });
+
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'backup'>('dashboard');
+
+  useEffect(() => {
+    localStorage.setItem('inventory_data', JSON.stringify(items));
+  }, [items]);
+
+  useEffect(() => {
+    localStorage.setItem('theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
 
   const handleUpdateItem = useCallback((id: string, updates: Partial<InventoryItem>) => {
     setItems(prev => prev.map(item => 
@@ -33,88 +56,106 @@ const App: React.FC = () => {
       lastUpdated: new Date().toISOString()
     };
     setItems(prev => [newItem, ...prev]);
+    setActiveTab('inventory');
   };
 
-  const handleExportCSV = () => {
-    const headers = ['ID', 'Material', 'Quantidade', 'Unidade', 'Categoria', 'Ultima Atualizacao'];
-    const rows = items.map(i => [i.id, i.name, i.quantity, i.unit, i.category, i.lastUpdated]);
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + headers.join(",") + "\n"
-      + rows.map(e => e.join(",")).join("\n");
-    
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "meu_inventario.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   return (
-    <div className="min-h-screen pb-12">
+    <div className={`min-h-screen transition-colors duration-500 ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       {/* Navigation / Header */}
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-50">
+      <nav className={`${theme === 'dark' ? 'bg-slate-900/80 border-slate-800' : 'bg-white/80 border-slate-200'} border-b px-6 py-4 sticky top-0 z-50 backdrop-blur-md transition-colors`}>
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white">
-              <i className="fas fa-boxes-stacked text-xl"></i>
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+              <i className="fas fa-box-open text-xl"></i>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 leading-none">Estoque Pro</h1>
-              <span className="text-xs text-gray-500 font-medium">Gestão Inteligente</span>
+            <div className="hidden sm:block">
+              <h1 className="text-xl font-black tracking-tight leading-none bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent">ESTOQUE PRO</h1>
+              <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Smart Management</span>
             </div>
           </div>
+
+          <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-2xl">
+            <button 
+              onClick={() => setActiveTab('dashboard')}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'dashboard' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              <i className="fas fa-chart-pie mr-2"></i> Painel
+            </button>
+            <button 
+              onClick={() => setActiveTab('inventory')}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'inventory' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              <i className="fas fa-list-ul mr-2"></i> Itens
+            </button>
+            <button 
+              onClick={() => setActiveTab('backup')}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'backup' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              <i className="fas fa-shield-alt mr-2"></i> Backup
+            </button>
+          </div>
+
           <div className="flex items-center gap-3">
             <button 
-              onClick={handleExportCSV}
-              className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all"
+              onClick={toggleTheme}
+              className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${theme === 'dark' ? 'bg-slate-800 text-yellow-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              title="Trocar tema"
             >
-              <i className="fas fa-file-export"></i>
-              Exportar CSV
+              <i className={`fas ${theme === 'dark' ? 'fa-sun' : 'fa-moon'}`}></i>
             </button>
             <button 
               onClick={handleAddItem}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg shadow-blue-500/30 transition-all"
+              className="hidden md:flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-all active:scale-95"
             >
               <i className="fas fa-plus"></i>
-              Novo Item
+              Adicionar
             </button>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-6 mt-8">
-        {/* Statistics and Dashboard */}
-        <InventoryDashboard items={items} />
+      <main className="max-w-7xl mx-auto px-6 py-10">
+        {activeTab === 'dashboard' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <InventoryDashboard items={items} />
+            <AIAssistant items={items} />
+          </div>
+        )}
 
-        {/* AI Assistant Section */}
-        <AIAssistant items={items} />
+        {activeTab === 'inventory' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-3xl font-black">Gerenciar Estoque</h2>
+                <p className="text-slate-500 dark:text-slate-400">Visualize e edite sua lista de materiais em tempo real.</p>
+              </div>
+              <button 
+                onClick={handleAddItem}
+                className="md:hidden flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl"
+              >
+                <i className="fas fa-plus"></i>
+              </button>
+            </div>
+            <InventoryTable 
+              items={items} 
+              onUpdate={handleUpdateItem} 
+              onDelete={handleDeleteItem} 
+            />
+          </div>
+        )}
 
-        {/* Main Table Section */}
-        <div className="mt-8">
-          <InventoryTable 
-            items={items} 
-            onUpdate={handleUpdateItem} 
-            onDelete={handleDeleteItem} 
-          />
-        </div>
+        {activeTab === 'backup' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <BackupView items={items} setItems={setItems} />
+          </div>
+        )}
 
-        {/* Footer Area */}
-        <footer className="mt-12 pt-8 border-t border-gray-200 text-center text-gray-400 text-sm">
-          <p>© 2024 Gestor de Materiais Inteligente. Desenvolvido para máxima produtividade.</p>
+        <footer className={`mt-20 py-10 border-t ${theme === 'dark' ? 'border-slate-900 text-slate-600' : 'border-slate-200 text-slate-400'} text-center text-xs font-medium uppercase tracking-widest`}>
+          <p>© 2024 Estoque Pro • Inteligência Aplicada ao seu Negócio</p>
         </footer>
       </main>
-
-      {/* Floating Action for Mobile Export */}
-      <div className="md:hidden fixed bottom-6 right-6">
-        <button 
-          onClick={handleExportCSV}
-          className="w-12 h-12 bg-white border border-gray-200 rounded-full shadow-lg flex items-center justify-center text-gray-600"
-        >
-          <i className="fas fa-download"></i>
-        </button>
-      </div>
     </div>
   );
 };
