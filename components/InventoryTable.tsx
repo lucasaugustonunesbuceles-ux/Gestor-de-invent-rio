@@ -1,12 +1,14 @@
 
 import React, { useState } from 'react';
-import { InventoryItem } from '../types';
+import { InventoryItem, Category } from '../types';
 
 interface Props {
   items: InventoryItem[];
   onUpdate: (id: string, updates: Partial<InventoryItem>) => void;
   onDelete: (id: string) => void;
 }
+
+const CATEGORIES: Category[] = ['Escrita', 'Grampeamento', 'Organização', 'Papelaria', 'Outros'];
 
 const InventoryTable: React.FC<Props> = ({ items, onUpdate, onDelete }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -53,31 +55,44 @@ const InventoryTable: React.FC<Props> = ({ items, onUpdate, onDelete }) => {
                     type="text"
                     value={item.name}
                     onChange={(e) => onUpdate(item.id, { name: e.target.value })}
-                    className="bg-transparent border-b border-transparent focus:border-blue-300 focus:outline-none w-full font-medium"
+                    className="bg-transparent border-b border-transparent hover:border-gray-200 focus:border-blue-300 focus:outline-none w-full font-medium py-1 transition-all"
                   />
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     <button 
                       onClick={() => onUpdate(item.id, { quantity: Math.max(0, item.quantity - 1) })}
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-gray-600"
                     >
-                      -
+                      <i className="fas fa-minus text-[10px]"></i>
                     </button>
                     <span className="w-8 text-center font-bold text-blue-600">{item.quantity}</span>
                     <button 
                       onClick={() => onUpdate(item.id, { quantity: item.quantity + 1 })}
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-gray-600"
                     >
-                      +
+                      <i className="fas fa-plus text-[10px]"></i>
                     </button>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-gray-600">{item.unit}</td>
                 <td className="px-6 py-4">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {item.category}
-                  </span>
+                  <input
+                    type="text"
+                    value={item.unit}
+                    onChange={(e) => onUpdate(item.id, { unit: e.target.value })}
+                    className="bg-transparent border-b border-transparent hover:border-gray-200 focus:border-blue-300 focus:outline-none w-16 text-gray-600 py-1 transition-all"
+                  />
+                </td>
+                <td className="px-6 py-4">
+                  <select
+                    value={item.category}
+                    onChange={(e) => onUpdate(item.id, { category: e.target.value })}
+                    className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full border-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none outline-none"
+                  >
+                    {CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-400">
                   {new Date(item.lastUpdated).toLocaleDateString('pt-BR')}
