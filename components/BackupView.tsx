@@ -5,17 +5,16 @@ import { InventoryItem } from '../types';
 interface Props {
   items: InventoryItem[];
   setItems: (items: InventoryItem[]) => void;
+  allowImport?: boolean;
 }
 
-const BackupView: React.FC<Props> = ({ items, setItems }) => {
+const BackupView: React.FC<Props> = ({ items, setItems, allowImport = false }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExportJSON = () => {
     const dataStr = JSON.stringify(items, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
     const exportFileDefaultName = `backup_inventario_${new Date().toISOString().split('T')[0]}.json`;
-    
     const linkElement = document.createElement('a');
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', exportFileDefaultName);
@@ -28,7 +27,6 @@ const BackupView: React.FC<Props> = ({ items, setItems }) => {
     const csvContent = "data:text/csv;charset=utf-8," 
       + headers.join(",") + "\n"
       + rows.map(e => e.join(",")).join("\n");
-    
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -39,6 +37,7 @@ const BackupView: React.FC<Props> = ({ items, setItems }) => {
   };
 
   const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!allowImport) return;
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -65,71 +64,63 @@ const BackupView: React.FC<Props> = ({ items, setItems }) => {
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold">Centro de Backup</h2>
-        <p className="text-gray-500 dark:text-gray-400">Gerencie a segurança dos seus dados de inventário.</p>
+        <h2 className="text-3xl font-black">Centro de Segurança</h2>
+        <p className="text-slate-400">Proteção de dados e backups programados.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className={`grid grid-cols-1 ${allowImport ? 'md:grid-cols-2' : 'max-w-md mx-auto'} gap-6`}>
         {/* Export Card */}
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center mb-6">
-            <i className="fas fa-file-export text-xl"></i>
+        <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-xl">
+          <div className="w-14 h-14 bg-blue-900/30 text-blue-400 rounded-2xl flex items-center justify-center mb-6">
+            <i className="fas fa-file-export text-2xl"></i>
           </div>
           <h3 className="text-xl font-bold mb-2">Exportar Dados</h3>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
-            Salve uma cópia local de todo o seu inventário para segurança ou uso em outras ferramentas.
-          </p>
+          <p className="text-slate-500 text-sm mb-6">Salve uma cópia do inventário em seu dispositivo.</p>
           <div className="space-y-3">
             <button 
               onClick={handleExportJSON}
-              className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600 rounded-xl transition-colors group"
+              className="w-full flex items-center justify-between px-5 py-4 bg-slate-800 hover:bg-slate-700 rounded-2xl transition-all group"
             >
-              <span className="font-medium">Backup Completo (JSON)</span>
-              <i className="fas fa-download text-gray-400 group-hover:text-blue-500"></i>
+              <span className="font-bold text-slate-200">Backup (JSON)</span>
+              <i className="fas fa-download text-slate-500 group-hover:text-blue-400 transition-colors"></i>
             </button>
             <button 
               onClick={handleExportCSV}
-              className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-700 hover:bg-green-50 dark:hover:bg-gray-600 rounded-xl transition-colors group"
+              className="w-full flex items-center justify-between px-5 py-4 bg-slate-800 hover:bg-slate-700 rounded-2xl transition-all group"
             >
-              <span className="font-medium">Planilha Excel (CSV)</span>
-              <i className="fas fa-file-csv text-gray-400 group-hover:text-green-500"></i>
+              <span className="font-bold text-slate-200">Excel (CSV)</span>
+              <i className="fas fa-file-csv text-slate-500 group-hover:text-emerald-400 transition-colors"></i>
             </button>
           </div>
         </div>
 
         {/* Import Card */}
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl flex items-center justify-center mb-6">
-            <i className="fas fa-file-import text-xl"></i>
+        {allowImport && (
+          <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-xl">
+            <div className="w-14 h-14 bg-purple-900/30 text-purple-400 rounded-2xl flex items-center justify-center mb-6">
+              <i className="fas fa-file-import text-2xl"></i>
+            </div>
+            <h3 className="text-xl font-bold mb-2">Restaurar</h3>
+            <p className="text-slate-500 text-sm mb-6">Apenas administradores podem importar dados.</p>
+            <input type="file" ref={fileInputRef} onChange={handleImportJSON} accept=".json" className="hidden" />
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-2xl transition-all shadow-lg shadow-purple-600/20 active:scale-[0.98]"
+            >
+              Restaurar do Arquivo
+            </button>
+            <p className="mt-4 text-[10px] text-center text-slate-500 italic uppercase tracking-widest font-black">Exclusivo ADM</p>
           </div>
-          <h3 className="text-xl font-bold mb-2">Restaurar Backup</h3>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
-            Recupere seus itens a partir de um arquivo JSON exportado anteriormente.
-          </p>
-          <input 
-            type="file" 
-            ref={fileInputRef}
-            onChange={handleImportJSON}
-            accept=".json"
-            className="hidden" 
-          />
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-purple-500/20 active:scale-[0.98]"
-          >
-            Selecionar Arquivo
-          </button>
-          <p className="mt-4 text-[10px] text-center text-gray-400 italic">
-            Apenas arquivos .json são suportados para restauração completa.
-          </p>
-        </div>
+        )}
       </div>
 
-      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 p-4 rounded-xl flex gap-4 items-start">
-        <i className="fas fa-exclamation-triangle text-amber-500 mt-1"></i>
+      <div className="bg-amber-900/10 border border-amber-900/30 p-6 rounded-[2rem] flex gap-5 items-start">
+        <div className="w-10 h-10 rounded-full bg-amber-900/20 flex items-center justify-center flex-shrink-0">
+          <i className="fas fa-shield-check text-amber-500"></i>
+        </div>
         <div className="text-sm">
-          <p className="font-bold text-amber-800 dark:text-amber-200">Dica de Segurança</p>
-          <p className="text-amber-700 dark:text-amber-300">Recomendamos exportar seus dados semanalmente. Seus dados são salvos localmente no navegador, mas limpar o cache pode removê-los.</p>
+          <p className="font-black text-amber-500 uppercase tracking-widest mb-1">Proteção de Dados</p>
+          <p className="text-slate-400 leading-relaxed">O sistema realiza backups automáticos a cada 3 dias no armazenamento do navegador. Monitoramento de logs de ADM está ativo.</p>
         </div>
       </div>
     </div>
