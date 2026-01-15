@@ -62,34 +62,32 @@ const BackupView: React.FC<Props> = ({ items, setItems, allowImport = false }) =
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-4xl mx-auto space-y-8">
       <div className="text-center space-y-2">
-        <h2 className="text-3xl font-black">Centro de Segurança</h2>
-        <p className="text-slate-400">Proteção de dados e backups programados.</p>
+        <h2 className="text-3xl font-black">Segurança e Dados</h2>
+        <p className="text-slate-400">Gerencie cópias de segurança do seu inventário.</p>
       </div>
 
-      <div className={`grid grid-cols-1 ${allowImport ? 'md:grid-cols-2' : 'max-w-md mx-auto'} gap-6`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Export Card */}
         <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-xl">
           <div className="w-14 h-14 bg-blue-900/30 text-blue-400 rounded-2xl flex items-center justify-center mb-6">
             <i className="fas fa-file-export text-2xl"></i>
           </div>
-          <h3 className="text-xl font-bold mb-2">Exportar Dados</h3>
-          <p className="text-slate-500 text-sm mb-6">Salve uma cópia do inventário em seu dispositivo.</p>
-          <div className="space-y-3">
+          <h3 className="text-xl font-bold mb-2">Exportar Inventário</h3>
+          <p className="text-slate-500 text-sm mb-6">Baixe seus dados para abrir no Excel ou guardar como backup.</p>
+          <div className="flex gap-3">
             <button 
               onClick={handleExportJSON}
-              className="w-full flex items-center justify-between px-5 py-4 bg-slate-800 hover:bg-slate-700 rounded-2xl transition-all group"
+              className="flex-1 flex items-center justify-center gap-2 py-4 bg-slate-800 hover:bg-slate-700 rounded-2xl transition-all font-bold text-slate-200"
             >
-              <span className="font-bold text-slate-200">Backup (JSON)</span>
-              <i className="fas fa-download text-slate-500 group-hover:text-blue-400 transition-colors"></i>
+              <i className="fas fa-download text-blue-400"></i> JSON
             </button>
             <button 
               onClick={handleExportCSV}
-              className="w-full flex items-center justify-between px-5 py-4 bg-slate-800 hover:bg-slate-700 rounded-2xl transition-all group"
+              className="flex-1 flex items-center justify-center gap-2 py-4 bg-slate-800 hover:bg-slate-700 rounded-2xl transition-all font-bold text-slate-200"
             >
-              <span className="font-bold text-slate-200">Excel (CSV)</span>
-              <i className="fas fa-file-csv text-slate-500 group-hover:text-emerald-400 transition-colors"></i>
+              <i className="fas fa-file-csv text-emerald-400"></i> EXCEL/CSV
             </button>
           </div>
         </div>
@@ -100,27 +98,26 @@ const BackupView: React.FC<Props> = ({ items, setItems, allowImport = false }) =
             <div className="w-14 h-14 bg-purple-900/30 text-purple-400 rounded-2xl flex items-center justify-center mb-6">
               <i className="fas fa-file-import text-2xl"></i>
             </div>
-            <h3 className="text-xl font-bold mb-2">Restaurar</h3>
-            <p className="text-slate-500 text-sm mb-6">Apenas administradores podem importar dados.</p>
+            <h3 className="text-xl font-bold mb-2">Restaurar Dados</h3>
+            <p className="text-slate-500 text-sm mb-6">Carregue um arquivo JSON de backup para restaurar o estoque.</p>
             <input type="file" ref={fileInputRef} onChange={handleImportJSON} accept=".json" className="hidden" />
             <button 
               onClick={() => fileInputRef.current?.click()}
-              className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-2xl transition-all shadow-lg shadow-purple-600/20 active:scale-[0.98]"
+              className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl transition-all shadow-lg"
             >
-              Restaurar do Arquivo
+              Selecionar Arquivo
             </button>
-            <p className="mt-4 text-[10px] text-center text-slate-500 italic uppercase tracking-widest font-black">Exclusivo ADM</p>
           </div>
         )}
       </div>
 
-      <div className="bg-amber-900/10 border border-amber-900/30 p-6 rounded-[2rem] flex gap-5 items-start">
-        <div className="w-10 h-10 rounded-full bg-amber-900/20 flex items-center justify-center flex-shrink-0">
-          <i className="fas fa-shield-check text-amber-500"></i>
+      <div className="bg-indigo-900/10 border border-indigo-900/30 p-6 rounded-[2rem] flex gap-5 items-start">
+        <div className="w-10 h-10 rounded-full bg-indigo-900/20 flex items-center justify-center flex-shrink-0">
+          <i className="fas fa-cloud text-indigo-500"></i>
         </div>
-        <div className="text-sm">
-          <p className="font-black text-amber-500 uppercase tracking-widest mb-1">Proteção de Dados</p>
-          <p className="text-slate-400 leading-relaxed">O sistema realiza backups automáticos a cada 3 dias no armazenamento do navegador. Monitoramento de logs de ADM está ativo.</p>
+        <div className="text-sm text-left">
+          <p className="font-black text-indigo-500 uppercase tracking-widest mb-1">Próximo Passo: Nuvem</p>
+          <p className="text-slate-400 leading-relaxed">Para que o estoque atualize automaticamente entre diferentes celulares e computadores, este aplicativo deve ser conectado a um banco de dados (ex: Supabase ou Firebase).</p>
         </div>
       </div>
     </div>
