@@ -105,7 +105,7 @@ const InventoryTable: React.FC<Props> = ({ items, onUpdate, onDelete, editable =
                             <i className="fas fa-minus text-[10px]"></i>
                           </button>
                         )}
-                        <span className={`w-8 text-center font-black text-lg ${isLowStock ? 'text-red-400 animate-pulse' : 'text-indigo-400'}`}>
+                        <span className={`w-8 text-center font-black text-lg transition-colors ${isLowStock ? 'text-rose-500 animate-pulse' : 'text-emerald-400'}`}>
                           {item.quantity}
                         </span>
                         {editable && (
@@ -127,7 +127,7 @@ const InventoryTable: React.FC<Props> = ({ items, onUpdate, onDelete, editable =
                       onFocus={() => startEditing(item)}
                       onChange={(e) => setTempMinStock(parseInt(e.target.value) || 0)}
                       onKeyDown={(e) => handleKeyDown(e, item.id, 'minStock')}
-                      className={`bg-slate-800/50 border border-slate-700/50 rounded-lg w-16 text-center py-1 text-sm font-bold text-slate-400 focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all ${!editable ? 'cursor-default' : 'cursor-text'}`}
+                      className={`bg-slate-800/50 border border-slate-700/50 rounded-lg w-16 text-center py-1 text-sm font-bold text-amber-400 focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all ${!editable ? 'cursor-default' : 'cursor-text'}`}
                     />
                   </td>
                   <td className="px-8 py-5">
