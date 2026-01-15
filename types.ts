@@ -6,6 +6,7 @@ export interface RegisteredUser {
   password: string;
   securityQuestion: string;
   securityAnswer: string;
+  role: UserRole;
 }
 
 export interface UserSession {

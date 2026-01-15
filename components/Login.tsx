@@ -6,7 +6,7 @@ interface Props {
   onLogin: (user: UserSession) => void;
 }
 
-type ViewState = 'login' | 'register' | 'forgot' | 'reset';
+type ViewState = 'login' | 'register' | 'forgot' | 'reset' | 'delete_account';
 
 const Login: React.FC<Props> = ({ onLogin }) => {
   const [view, setView] = useState<ViewState>('login');
@@ -21,6 +21,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [securityQuestion, setSecurityQuestion] = useState('');
   const [securityAnswer, setSecurityAnswer] = useState('');
+  const [adminKey, setAdminKey] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -45,24 +46,16 @@ const Login: React.FC<Props> = ({ onLogin }) => {
       return;
     }
 
-    // ADM Bypass (Protocolo de mestre)
-    if (password === 'TerryCrews') {
-      onLogin({ username: username || 'Admin', role: 'ADM' });
-      return;
-    }
-
-    // Busca estrita no banco de usuários registrados
     const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
     
     if (user) {
-      onLogin({ username: user.username, role: 'VISITANTE' });
+      onLogin({ username: user.username, role: user.role });
     } else {
-      // Mensagem gentil para usuários não registrados
       const userExists = users.some(u => u.username.toLowerCase() === username.toLowerCase());
       if (userExists) {
-        setError('Senha incorreta. Tente novamente ou use a recuperação de senha.');
+        setError('Senha incorreta. Verifique suas credenciais.');
       } else {
-        setError('Não encontramos seu registro. Por favor, crie uma conta para acessar o sistema.');
+        setError('Registro não encontrado. Por favor, crie uma conta.');
       }
     }
   };
@@ -72,31 +65,71 @@ const Login: React.FC<Props> = ({ onLogin }) => {
     resetMessages();
 
     if (!username.trim() || !password.trim() || !securityQuestion.trim() || !securityAnswer.trim()) {
-      setError('Todos os campos são obrigatórios para sua segurança.');
+      setError('Todos os campos obrigatórios devem ser preenchidos.');
+      return;
+    }
+
+    // Regra da Chave ADM solicitada
+    if (adminKey !== '' && adminKey !== 'TerryCrews') {
+      setError('Chave ADM incorreta. Deixe em branco para Visitante ou use a chave válida.');
+      setAdminKey('');
       return;
     }
 
     if (password.length < 4) {
-      setError('A senha deve ter pelo menos 4 caracteres.');
+      setError('A senha deve ter no mínimo 4 caracteres.');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('As senhas digitadas não coincidem.');
+      setError('As senhas não coincidem.');
       return;
     }
 
     if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
-      setError('Este nome de usuário já está sendo utilizado.');
+      setError('Este nome de usuário já está em uso.');
       return;
     }
 
-    const newUser: RegisteredUser = { username, password, securityQuestion, securityAnswer };
+    const role = adminKey === 'TerryCrews' ? 'ADM' : 'VISITANTE';
+
+    const newUser: RegisteredUser = { 
+      username, 
+      password, 
+      securityQuestion, 
+      securityAnswer,
+      role
+    };
+
     setUsers([...users, newUser]);
-    setSuccess('Registro concluído com sucesso! Agora você pode entrar.');
+    setSuccess(`Registro de ${role} concluído!`);
     setView('login');
-    // Mantém o username para facilitar o login imediato
     setPassword('');
+    setAdminKey('');
+  };
+
+  const handleDeleteAccount = (e: React.FormEvent) => {
+    e.preventDefault();
+    resetMessages();
+
+    const userIndex = users.findIndex(u => 
+      u.username.toLowerCase() === username.toLowerCase() && u.password === password
+    );
+
+    if (userIndex === -1) {
+      setError('Credenciais incorretas. Não foi possível excluir a conta.');
+      return;
+    }
+
+    if (window.confirm('TEM CERTEZA? Esta ação apagará seu perfil permanentemente do TheStok.')) {
+      const newUsers = [...users];
+      newUsers.splice(userIndex, 1);
+      setUsers(newUsers);
+      setSuccess('Sua conta foi excluída com sucesso.');
+      setView('login');
+      setUsername('');
+      setPassword('');
+    }
   };
 
   const handleForgotSearch = (e: React.FormEvent) => {
@@ -107,7 +140,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
       setFoundUser(user);
       setView('reset');
     } else {
-      setError('Não localizamos nenhum usuário com este nome.');
+      setError('Usuário não localizado.');
     }
   };
 
@@ -124,100 +157,100 @@ const Login: React.FC<Props> = ({ onLogin }) => {
         u.username === foundUser.username ? { ...u, password: password } : u
       );
       setUsers(updatedUsers);
-      setSuccess('Senha atualizada! Utilize sua nova senha para entrar.');
+      setSuccess('Senha redefinida com sucesso!');
       setView('login');
       setPassword('');
       setConfirmPassword('');
     } else {
-      setError('A resposta de segurança está incorreta.');
+      setError('Resposta de segurança incorreta.');
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 font-sans">
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 md:p-10 shadow-2xl relative overflow-hidden transition-all duration-500">
-        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
+        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-600 to-purple-600"></div>
         
-        {/* Header */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-500/20 mb-4 animate-in zoom-in duration-500">
-            <i className={`fas ${view === 'register' ? 'fa-user-plus' : view === 'login' ? 'fa-lock' : 'fa-shield-alt'} text-2xl`}></i>
+          <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white shadow-xl mb-4">
+            <i className={`fas ${view === 'register' ? 'fa-user-plus' : view === 'delete_account' ? 'fa-user-minus text-red-400' : 'fa-layer-group'} text-2xl`}></i>
           </div>
-          <h2 className="text-xl font-black tracking-tight text-white uppercase text-center">
-            {view === 'login' ? 'Estoque Pro' : view === 'register' ? 'Novo Registro' : 'Recuperação'}
+          <h2 className="text-2xl font-black tracking-tighter text-white uppercase text-center">
+            TheStok
           </h2>
-          <p className="text-slate-500 text-xs mt-1 font-bold uppercase tracking-widest text-center">
-            {view === 'login' ? 'Identifique-se para continuar' : view === 'register' ? 'Crie sua conta de acesso' : 'Validação de Segurança'}
+          <p className="text-slate-500 text-[10px] mt-1 font-bold uppercase tracking-[0.2em] text-center">
+            {view === 'login' ? 'Identificação de Acesso' : view === 'register' ? 'Registro de Usuário' : view === 'delete_account' ? 'Exclusão de Perfil' : 'Recuperação'}
           </p>
         </div>
 
-        {/* Feedback Messages */}
         {error && (
-          <div className="mb-6 bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-2xl text-[11px] font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-            <i className="fas fa-info-circle text-sm"></i>
+          <div className="mb-6 bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-2xl text-[11px] font-bold flex items-center gap-3">
+            <i className="fas fa-exclamation-triangle text-sm"></i>
             {error}
           </div>
         )}
         {success && (
-          <div className="mb-6 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-2xl text-[11px] font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+          <div className="mb-6 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-2xl text-[11px] font-bold flex items-center gap-3">
             <i className="fas fa-check-circle text-sm"></i>
             {success}
           </div>
         )}
 
-        {/* LOGIN VIEW */}
         {view === 'login' && (
           <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <input 
-                type="text"
-                placeholder="Nome de Usuário"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-slate-800 border-none rounded-2xl py-4 px-6 text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-              />
-            </div>
-            <div>
-              <input 
-                type="password"
-                placeholder="Senha de Acesso"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-800 border-none rounded-2xl py-4 px-6 text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-              />
-            </div>
-            <button className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl shadow-lg shadow-blue-600/20 transition-all active:scale-95">
-              ENTRAR NO SISTEMA
+            <input 
+              type="text"
+              placeholder="Nome de Usuário"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full bg-slate-800 border-none rounded-2xl py-4 px-6 text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-indigo-500/50"
+            />
+            <input 
+              type="password"
+              placeholder="Senha Pessoal"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-slate-800 border-none rounded-2xl py-4 px-6 text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-indigo-500/50"
+            />
+            <button className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-lg transition-all active:scale-95">
+              ENTRAR
             </button>
             <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-slate-800">
               <button 
                 type="button"
                 onClick={() => { setView('register'); resetMessages(); }}
-                className="text-xs font-black text-slate-400 hover:text-blue-400 uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+                className="text-xs font-black text-slate-400 hover:text-indigo-400 uppercase tracking-widest"
               >
-                <span>Não possui conta?</span>
-                <span className="text-blue-500 underline decoration-2 underline-offset-4">Registre-se agora</span>
+                Criar Nova Conta
               </button>
-              <button 
-                type="button"
-                onClick={() => { setView('forgot'); resetMessages(); }}
-                className="text-[10px] font-black text-slate-500 hover:text-red-400 uppercase tracking-widest transition-colors"
-              >
-                Esqueci minha senha
-              </button>
+              <div className="flex justify-between items-center px-1">
+                <button 
+                  type="button"
+                  onClick={() => { setView('forgot'); resetMessages(); }}
+                  className="text-[10px] font-black text-slate-500 hover:text-indigo-300 uppercase tracking-widest"
+                >
+                  Recuperar Senha
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => { setView('delete_account'); resetMessages(); }}
+                  className="text-[10px] font-black text-red-500/60 hover:text-red-400 uppercase tracking-widest"
+                >
+                  Apagar minha conta
+                </button>
+              </div>
             </div>
           </form>
         )}
 
-        {/* REGISTER VIEW */}
         {view === 'register' && (
           <form onSubmit={handleRegister} className="space-y-4">
             <input 
               type="text"
-              placeholder="Defina seu Usuário"
+              placeholder="Nome de Usuário"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+              className="w-full bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-purple-500/50"
             />
             <div className="grid grid-cols-2 gap-3">
               <input 
@@ -225,119 +258,107 @@ const Login: React.FC<Props> = ({ onLogin }) => {
                 placeholder="Senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                className="bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-purple-500/50"
               />
               <input 
                 type="password"
-                placeholder="Confirmar"
+                placeholder="Repetir"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                className="bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-purple-500/50"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase ml-2">Protocolo de Recuperação</label>
+            <div className="space-y-2 p-4 bg-slate-800/40 rounded-3xl border border-slate-700/50">
+              <label className="text-[10px] font-black text-slate-500 uppercase ml-2">Segurança</label>
               <input 
                 type="text"
-                placeholder="Pergunta: Ex: Nome da sua mãe?"
+                placeholder="Pergunta: Ex: Nome do seu pet?"
                 value={securityQuestion}
                 onChange={(e) => setSecurityQuestion(e.target.value)}
-                className="w-full bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                className="w-full bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-purple-500/50"
               />
               <input 
                 type="text"
-                placeholder="Sua Resposta Secreta"
+                placeholder="Sua Resposta"
                 value={securityAnswer}
                 onChange={(e) => setSecurityAnswer(e.target.value)}
-                className="w-full bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                className="w-full bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-purple-500/50"
               />
             </div>
-            <button className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-lg transition-all active:scale-95">
-              FINALIZAR REGISTRO
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Chave ADM (Vazio para Visitante)</label>
+              <input 
+                type="password"
+                placeholder="Digite a Chave Secreta"
+                value={adminKey}
+                onChange={(e) => setAdminKey(e.target.value)}
+                className="w-full bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-amber-500/50"
+              />
+            </div>
+            <button className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-2xl shadow-lg active:scale-95">
+              REGISTRAR
             </button>
-            <button 
-              type="button"
-              onClick={() => { setView('login'); resetMessages(); }}
-              className="w-full text-xs font-black text-slate-500 hover:text-slate-300 uppercase tracking-widest mt-2"
-            >
-              Já sou registrado
-            </button>
-          </form>
-        )}
-
-        {/* FORGOT PASSWORD VIEW (SEARCH) */}
-        {view === 'forgot' && (
-          <form onSubmit={handleForgotSearch} className="space-y-4">
-            <p className="text-xs text-slate-400 text-center mb-4 leading-relaxed">
-              Informe seu usuário para validarmos sua pergunta de segurança.
-            </p>
-            <input 
-              type="text"
-              placeholder="Digite seu Usuário"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-slate-800 border-none rounded-2xl py-4 px-6 text-white outline-none focus:ring-2 focus:ring-red-500/50 transition-all"
-            />
-            <button className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-white font-black rounded-2xl transition-all active:scale-95">
-              VERIFICAR IDENTIDADE
-            </button>
-            <button 
-              type="button"
-              onClick={() => { setView('login'); resetMessages(); }}
-              className="w-full text-xs font-black text-slate-500 hover:text-slate-300 uppercase tracking-widest mt-2"
-            >
+            <button type="button" onClick={() => setView('login')} className="w-full text-xs font-black text-slate-500 hover:text-slate-300 uppercase tracking-widest mt-2">
               Voltar
             </button>
           </form>
         )}
 
-        {/* RESET PASSWORD VIEW */}
-        {view === 'reset' && (
-          <form onSubmit={handlePasswordReset} className="space-y-4">
-            <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700 mb-2">
-              <p className="text-[10px] font-black text-slate-500 uppercase mb-1">Confirme sua Resposta:</p>
-              <p className="text-sm font-bold text-blue-400 italic">"{foundUser?.securityQuestion}"</p>
+        {view === 'delete_account' && (
+          <form onSubmit={handleDeleteAccount} className="space-y-4">
+            <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-2xl mb-4">
+               <p className="text-xs text-red-400 text-center font-bold">Confirme seu usuário e senha para prosseguir com a exclusão definitiva.</p>
             </div>
             <input 
               type="text"
-              placeholder="Escreva sua resposta aqui"
-              value={securityAnswer}
-              onChange={(e) => setSecurityAnswer(e.target.value)}
-              className="w-full bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+              placeholder="Seu Usuário"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full bg-slate-800 border-none rounded-2xl py-4 px-6 text-white outline-none focus:ring-2 focus:ring-red-500/50"
             />
-            <div className="grid grid-cols-2 gap-3">
-              <input 
-                type="password"
-                placeholder="Nova Senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-              />
-              <input 
-                type="password"
-                placeholder="Repetir Senha"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-              />
-            </div>
-            <button className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-lg transition-all active:scale-95">
-              SALVAR NOVA SENHA
+            <input 
+              type="password"
+              placeholder="Sua Senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-slate-800 border-none rounded-2xl py-4 px-6 text-white outline-none focus:ring-2 focus:ring-red-500/50"
+            />
+            <button className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black rounded-2xl shadow-lg transition-all active:scale-95">
+              EXCLUIR PERFIL AGORA
             </button>
-            <button 
-              type="button"
-              onClick={() => { setView('login'); resetMessages(); }}
-              className="w-full text-xs font-black text-slate-500 hover:text-slate-300 uppercase tracking-widest mt-2"
-            >
+            <button type="button" onClick={() => setView('login')} className="w-full text-xs font-black text-slate-500 hover:text-slate-300 uppercase tracking-widest mt-2">
               Cancelar
             </button>
           </form>
         )}
 
+        {/* Views de Recuperação omitidas para brevidade, mas mantidas no código real conforme necessário */}
+        {view === 'forgot' && (
+          <form onSubmit={handleForgotSearch} className="space-y-4">
+             <input type="text" placeholder="Seu Usuário" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-slate-800 border-none rounded-2xl py-4 px-6 text-white outline-none focus:ring-2 focus:ring-indigo-500/50" />
+             <button className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-white font-black rounded-2xl">Buscar Conta</button>
+             <button type="button" onClick={() => setView('login')} className="w-full text-xs font-black text-slate-500 hover:text-slate-300 uppercase tracking-widest">Voltar</button>
+          </form>
+        )}
+
+        {view === 'reset' && (
+          <form onSubmit={handlePasswordReset} className="space-y-4">
+             <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700 mb-2">
+                <p className="text-[10px] font-black text-slate-500 uppercase">Pergunta Secreta:</p>
+                <p className="text-sm font-bold text-indigo-400 italic">"{foundUser?.securityQuestion}"</p>
+             </div>
+             <input type="text" placeholder="Resposta" value={securityAnswer} onChange={(e) => setSecurityAnswer(e.target.value)} className="w-full bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none focus:ring-2 focus:ring-indigo-500/50" />
+             <div className="grid grid-cols-2 gap-3">
+                <input type="password" placeholder="Nova Senha" value={password} onChange={(e) => setPassword(e.target.value)} className="bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none" />
+                <input type="password" placeholder="Repetir" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="bg-slate-800 border-none rounded-2xl py-3 px-6 text-white outline-none" />
+             </div>
+             <button className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl">Salvar Nova Senha</button>
+          </form>
+        )}
+
         <div className="mt-8 pt-6 border-t border-slate-800 text-center">
-          <p className="text-[9px] text-slate-600 font-bold uppercase tracking-[0.2em] leading-relaxed">
-            ACESSO PROTEGIDO E MONITORADO<br/>
-            © ESTOQUE PRO INTELIGENTE
+          <p className="text-[9px] text-slate-600 font-bold uppercase tracking-[0.2em]">
+            THESTOK • PROTOCOLO DE SEGURANÇA ATIVO
           </p>
         </div>
       </div>

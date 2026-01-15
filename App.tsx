@@ -46,7 +46,6 @@ const App: React.FC = () => {
     localStorage.setItem('action_logs', JSON.stringify(logs));
   }, [logs]);
 
-  // Simulação de backup automático (A cada 3 dias)
   useEffect(() => {
     const lastBackup = localStorage.getItem('last_auto_backup');
     const now = Date.now();
@@ -56,7 +55,6 @@ const App: React.FC = () => {
       const backupData = { items, withdrawals, logs, date: new Date().toISOString() };
       localStorage.setItem(`auto_backup_${new Date().toISOString().split('T')[0]}`, JSON.stringify(backupData));
       localStorage.setItem('last_auto_backup', now.toString());
-      console.log('Backup automático realizado com sucesso.');
     }
   }, [items, withdrawals, logs]);
 
@@ -74,22 +72,37 @@ const App: React.FC = () => {
   }, [session]);
 
   const handleUpdateItem = useCallback((id: string, updates: Partial<InventoryItem>) => {
-    const itemBefore = items.find(i => i.id === id);
-    setItems(prev => prev.map(item => 
-      item.id === id 
-        ? { ...item, ...updates, lastUpdated: new Date().toISOString() } 
-        : item
-    ));
-    if (itemBefore) {
-      addLog('Atualização de Item', `${itemBefore.name}: alterado ${Object.keys(updates).join(', ')}`);
+    let logMsg = "";
+    setItems(prev => prev.map(item => {
+      if (item.id === id) {
+        // Criar log detalhado das mudanças
+        const changes = Object.entries(updates).map(([key, value]) => {
+          const oldVal = item[key as keyof InventoryItem];
+          if (oldVal !== value) {
+            return `${key}: de "${oldVal}" para "${value}"`;
+          }
+          return null;
+        }).filter(Boolean);
+
+        if (changes.length > 0) {
+          logMsg = `${item.name}: ${changes.join(', ')}`;
+        }
+        
+        return { ...item, ...updates, lastUpdated: new Date().toISOString() };
+      }
+      return item;
+    }));
+
+    if (logMsg) {
+      addLog('Atualização de Item', logMsg);
     }
-  }, [items, addLog]);
+  }, [addLog]);
 
   const handleDeleteItem = useCallback((id: string) => {
-    const item = items.find(id === id);
-    if (window.confirm('Deseja realmente excluir este item?')) {
+    const itemToDelete = items.find(i => i.id === id);
+    if (itemToDelete && window.confirm(`AVISO CRÍTICO: Deseja realmente excluir "${itemToDelete.name}" do sistema? Esta ação é irreversível.`)) {
       setItems(prev => prev.filter(item => item.id !== id));
-      if (item) addLog('Exclusão de Item', `Material removido: ${item.name}`);
+      addLog('Exclusão de Item', `Material removido permanentemente: ${itemToDelete.name}`);
     }
   }, [items, addLog]);
 
@@ -137,71 +150,43 @@ const App: React.FC = () => {
       <nav className="bg-slate-900/80 border-slate-800 border-b px-6 py-4 sticky top-0 z-50 backdrop-blur-md">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-              <i className="fas fa-box-open text-xl"></i>
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+              <i className="fas fa-layer-group text-xl"></i>
             </div>
-            <div className="hidden sm:block">
-              <h1 className="text-xl font-black tracking-tight leading-none bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent">ESTOQUE PRO</h1>
+            <div className="hidden sm:block text-left">
+              <h1 className="text-xl font-black tracking-tighter leading-none bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">THESTOK</h1>
               <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">{session.role}: {session.username}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-1 bg-slate-800/50 p-1 rounded-2xl overflow-x-auto">
-            <button 
-              onClick={() => setActiveTab('dashboard')}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex-shrink-0 ${activeTab === 'dashboard' ? 'bg-slate-700 shadow-sm text-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-            >
+            <button onClick={() => setActiveTab('dashboard')} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex-shrink-0 ${activeTab === 'dashboard' ? 'bg-slate-700 shadow-sm text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
               <i className="fas fa-chart-pie mr-1 md:mr-2"></i> <span className="hidden md:inline">Painel</span>
             </button>
-            <button 
-              onClick={() => setActiveTab('inventory')}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex-shrink-0 ${activeTab === 'inventory' ? 'bg-slate-700 shadow-sm text-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-            >
+            <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex-shrink-0 ${activeTab === 'inventory' ? 'bg-slate-700 shadow-sm text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
               <i className="fas fa-list-ul mr-1 md:mr-2"></i> <span className="hidden md:inline">Itens</span>
             </button>
-            <button 
-              onClick={() => setActiveTab('withdrawals')}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex-shrink-0 ${activeTab === 'withdrawals' ? 'bg-slate-700 shadow-sm text-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-            >
+            <button onClick={() => setActiveTab('withdrawals')} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex-shrink-0 ${activeTab === 'withdrawals' ? 'bg-slate-700 shadow-sm text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
               <i className="fas fa-hand-holding-box mr-1 md:mr-2"></i> <span className="hidden md:inline">Retiradas</span>
             </button>
-            {isAdm && (
-              <button 
-                onClick={() => setActiveTab('logs')}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex-shrink-0 ${activeTab === 'logs' ? 'bg-slate-700 shadow-sm text-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                <i className="fas fa-clipboard-list mr-1 md:mr-2"></i> <span className="hidden md:inline">Logs</span>
-              </button>
-            )}
-            <button 
-              onClick={() => setActiveTab('info')}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex-shrink-0 ${activeTab === 'info' ? 'bg-slate-700 shadow-sm text-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-            >
+            <button onClick={() => setActiveTab('logs')} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex-shrink-0 ${activeTab === 'logs' ? 'bg-slate-700 shadow-sm text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
+              <i className="fas fa-clipboard-list mr-1 md:mr-2"></i> <span className="hidden md:inline">Logs</span>
+            </button>
+            <button onClick={() => setActiveTab('info')} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex-shrink-0 ${activeTab === 'info' ? 'bg-slate-700 shadow-sm text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
               <i className="fas fa-info-circle mr-1 md:mr-2"></i> <span className="hidden md:inline">Sobre</span>
             </button>
-            <button 
-              onClick={() => setActiveTab('backup')}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex-shrink-0 ${activeTab === 'backup' ? 'bg-slate-700 shadow-sm text-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-            >
+            <button onClick={() => setActiveTab('backup')} className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex-shrink-0 ${activeTab === 'backup' ? 'bg-slate-700 shadow-sm text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
               <i className="fas fa-shield-alt mr-1 md:mr-2"></i> <span className="hidden md:inline">Segurança</span>
             </button>
           </div>
 
           <div className="flex items-center gap-3">
             {isAdm && (
-              <button 
-                onClick={handleAddItem}
-                className="hidden lg:flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-all active:scale-95"
-              >
-                <i className="fas fa-plus"></i>
-                Novo
+              <button onClick={handleAddItem} className="hidden lg:flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/20 transition-all active:scale-95">
+                <i className="fas fa-plus"></i> Novo
               </button>
             )}
-            <button 
-              onClick={handleLogout}
-              className="p-2.5 text-slate-400 hover:text-red-400 transition-colors"
-              title="Sair"
-            >
+            <button onClick={handleLogout} className="p-2.5 text-slate-400 hover:text-red-400 transition-colors" title="Sair">
               <i className="fas fa-sign-out-alt text-lg"></i>
             </button>
           </div>
@@ -218,40 +203,23 @@ const App: React.FC = () => {
 
         {activeTab === 'inventory' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center text-left">
               <div>
                 <h2 className="text-3xl font-black">Estoque</h2>
-                <p className="text-slate-400">{isAdm ? 'Controle total de materiais e níveis mínimos.' : 'Consulta de disponibilidade de materiais.'}</p>
+                <p className="text-slate-400">{isAdm ? 'Controle total de materiais e níveis de reposição.' : 'Consulta de disponibilidade de materiais.'}</p>
               </div>
-              {isAdm && (
-                <button 
-                  onClick={handleAddItem}
-                  className="lg:hidden flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-blue-600 rounded-xl"
-                >
-                  <i className="fas fa-plus"></i>
-                </button>
-              )}
             </div>
-            <InventoryTable 
-              items={items} 
-              onUpdate={handleUpdateItem} 
-              onDelete={handleDeleteItem}
-              editable={isAdm}
-            />
+            <InventoryTable items={items} onUpdate={handleUpdateItem} onDelete={handleDeleteItem} editable={isAdm} />
           </div>
         )}
 
         {activeTab === 'withdrawals' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <WithdrawalView 
-              items={items} 
-              records={withdrawals} 
-              onWithdraw={handleRegisterWithdrawal} 
-            />
+            <WithdrawalView items={items} records={withdrawals} onWithdraw={handleRegisterWithdrawal} />
           </div>
         )}
 
-        {activeTab === 'logs' && isAdm && (
+        {activeTab === 'logs' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <ActionLogsView logs={logs} />
           </div>
@@ -270,7 +238,7 @@ const App: React.FC = () => {
         )}
 
         <footer className="mt-20 py-10 border-t border-slate-900 text-slate-600 text-center text-xs font-medium uppercase tracking-widest">
-          <p>© 2024 Estoque Pro • Sistema Seguro e Monitorado</p>
+          <p>© 2024 TheStok • Sistema Seguro e Monitorado</p>
         </footer>
       </main>
     </div>

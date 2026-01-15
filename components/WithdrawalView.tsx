@@ -43,7 +43,6 @@ const WithdrawalView: React.FC<Props> = ({ items, records, onWithdraw }) => {
 
     onWithdraw(record);
     
-    // Reset form
     setPersonName('');
     setQuantity(1);
     setSelectedItemId('');
@@ -53,7 +52,6 @@ const WithdrawalView: React.FC<Props> = ({ items, records, onWithdraw }) => {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Form Column */}
         <div className="lg:col-span-1">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
             <h3 className="text-xl font-black mb-6 flex items-center gap-3">
@@ -62,7 +60,7 @@ const WithdrawalView: React.FC<Props> = ({ items, records, onWithdraw }) => {
             </h3>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Item para Retirada</label>
+                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2 text-left">Item para Retirada</label>
                 <select 
                   value={selectedItemId}
                   onChange={(e) => setSelectedItemId(e.target.value)}
@@ -78,7 +76,7 @@ const WithdrawalView: React.FC<Props> = ({ items, records, onWithdraw }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Quem está retirando?</label>
+                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2 text-left">Quem está retirando?</label>
                 <input 
                   type="text"
                   placeholder="Nome do colaborador"
@@ -89,8 +87,8 @@ const WithdrawalView: React.FC<Props> = ({ items, records, onWithdraw }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Quantidade</label>
-                <div className="flex items-center gap-0 bg-slate-800 rounded-2xl overflow-hidden border border-slate-700/50">
+                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2 text-left">Quantidade</label>
+                <div className="flex items-center bg-slate-800 rounded-2xl border border-slate-700/50 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/50 transition-all">
                   <button 
                     type="button"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -102,7 +100,7 @@ const WithdrawalView: React.FC<Props> = ({ items, records, onWithdraw }) => {
                     type="number"
                     value={quantity}
                     onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="flex-1 bg-transparent border-none text-center text-xl font-black focus:ring-0 outline-none h-14"
+                    className="flex-1 bg-transparent border-none text-center text-xl font-black focus:ring-0 outline-none h-14 text-white"
                   />
                   <button 
                     type="button"
@@ -124,7 +122,6 @@ const WithdrawalView: React.FC<Props> = ({ items, records, onWithdraw }) => {
           </div>
         </div>
 
-        {/* List Column */}
         <div className="lg:col-span-2">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
             <div className="p-8 border-b border-slate-800 flex justify-between items-center">
