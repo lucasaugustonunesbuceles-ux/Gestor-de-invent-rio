@@ -90,26 +90,26 @@ const WithdrawalView: React.FC<Props> = ({ items, records, onWithdraw }) => {
 
               <div>
                 <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Quantidade</label>
-                <div className="flex items-center gap-4 bg-slate-800 rounded-2xl p-2">
+                <div className="flex items-center gap-0 bg-slate-800 rounded-2xl overflow-hidden border border-slate-700/50">
                   <button 
                     type="button"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 bg-slate-700 rounded-xl flex items-center justify-center hover:bg-slate-600 transition-colors"
+                    className="w-12 h-14 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center justify-center border-r border-slate-700/50"
                   >
-                    <i className="fas fa-minus text-xs"></i>
+                    <i className="fas fa-minus text-xs text-slate-400"></i>
                   </button>
                   <input 
                     type="number"
                     value={quantity}
                     onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="flex-1 bg-transparent border-none text-center text-xl font-black focus:ring-0 outline-none"
+                    className="flex-1 bg-transparent border-none text-center text-xl font-black focus:ring-0 outline-none h-14"
                   />
                   <button 
                     type="button"
                     onClick={() => setQuantity(quantity + 1)}
-                    className="w-10 h-10 bg-slate-700 rounded-xl flex items-center justify-center hover:bg-slate-600 transition-colors"
+                    className="w-12 h-14 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center justify-center border-l border-slate-700/50"
                   >
-                    <i className="fas fa-plus text-xs"></i>
+                    <i className="fas fa-plus text-xs text-slate-400"></i>
                   </button>
                 </div>
               </div>

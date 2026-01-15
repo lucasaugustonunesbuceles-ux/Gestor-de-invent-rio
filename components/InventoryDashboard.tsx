@@ -39,18 +39,16 @@ const InventoryDashboard: React.FC<Props> = ({ items }) => {
     value: categoryCounts[cat]
   }));
 
-  const isDark = true; // Always dark now
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 transition-all">
       {/* Bar Chart */}
-      <div className="bg-slate-900 p-6 rounded-3xl shadow-none border border-slate-800 transition-colors">
+      <div className="bg-slate-900 p-6 rounded-3xl shadow-none border border-slate-800 transition-colors flex flex-col min-h-[400px]">
         <h3 className="text-lg font-black text-white mb-6 flex items-center gap-3">
           <i className="fas fa-chart-bar text-blue-500"></i>
           Saldo vs. Estoque Mínimo
         </h3>
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="flex-1 w-full min-h-[250px]">
+          <ResponsiveContainer width="100%" height="100%" minHeight={250}>
             <BarChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
               <XAxis 
@@ -101,15 +99,15 @@ const InventoryDashboard: React.FC<Props> = ({ items }) => {
           </div>
         </div>
 
-        <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 h-full transition-colors relative overflow-hidden">
+        <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 flex-1 transition-colors relative overflow-hidden flex flex-col min-h-[250px]">
            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/5 blur-3xl rounded-full"></div>
            <h3 className="text-lg font-black text-white mb-4 flex items-center gap-3">
             <i className="fas fa-chart-pie text-indigo-500"></i>
             Ocupação por Categoria
           </h3>
-          <div className="flex items-center">
-            <div className="h-44 w-1/2">
-               <ResponsiveContainer width="100%" height="100%">
+          <div className="flex items-center flex-1">
+            <div className="flex-1 min-h-[180px]">
+               <ResponsiveContainer width="100%" height="100%" minHeight={180}>
                  <PieChart>
                    <Pie
                      data={pieData}

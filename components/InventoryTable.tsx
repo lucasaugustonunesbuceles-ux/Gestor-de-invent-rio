@@ -1,10 +1,9 @@
 
-import React, { useState, useMemo } from 'react';
-import { InventoryItem, Category, WithdrawalRecord } from '../types';
+import React, { useState } from 'react';
+import { InventoryItem, Category } from '../types';
 
 interface Props {
   items: InventoryItem[];
-  withdrawals: WithdrawalRecord[];
   onUpdate: (id: string, updates: Partial<InventoryItem>) => void;
   onDelete: (id: string) => void;
   editable?: boolean;
@@ -12,16 +11,8 @@ interface Props {
 
 const CATEGORIES: Category[] = ['Escrita', 'Grampeamento', 'Organização', 'Papelaria', 'Outros'];
 
-const InventoryTable: React.FC<Props> = ({ items, withdrawals, onUpdate, onDelete, editable = false }) => {
+const InventoryTable: React.FC<Props> = ({ items, onUpdate, onDelete, editable = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
-
-  const turnoverStats = useMemo(() => {
-    const counts: Record<string, number> = {};
-    withdrawals.forEach(w => {
-      counts[w.itemId] = (counts[w.itemId] || 0) + w.quantity;
-    });
-    return counts;
-  }, [withdrawals]);
 
   const filteredItems = items.filter(item => 
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -55,15 +46,12 @@ const InventoryTable: React.FC<Props> = ({ items, withdrawals, onUpdate, onDelet
               <th className="px-8 py-5">Material</th>
               <th className="px-8 py-5 text-center">Saldo Atual</th>
               <th className="px-8 py-5 text-center">Mín. Sugerido</th>
-              <th className="px-8 py-5">Curva Giro</th>
               <th className="px-8 py-5">Categoria</th>
               <th className="px-8 py-5 text-right"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
             {filteredItems.map((item) => {
-              const totalWithdrawn = turnoverStats[item.id] || 0;
-              const isHighGiro = totalWithdrawn > 5;
               const isLowStock = item.quantity < item.minStock;
 
               return (
@@ -112,18 +100,6 @@ const InventoryTable: React.FC<Props> = ({ items, withdrawals, onUpdate, onDelet
                         onChange={(e) => onUpdate(item.id, { minStock: Math.max(0, parseInt(e.target.value) || 0) })}
                         className={`bg-slate-800/50 border border-slate-700/50 rounded-lg w-16 text-center py-1 text-sm font-bold text-slate-400 focus:ring-1 focus:ring-blue-500 outline-none ${!editable ? 'cursor-default' : ''}`}
                       />
-                    </div>
-                  </td>
-                  <td className="px-8 py-5">
-                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border ${
-                      isHighGiro 
-                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' 
-                        : 'bg-slate-800 text-slate-500 border-slate-700'
-                    }`}>
-                      <i className={`fas ${isHighGiro ? 'fa-fire' : 'fa-snowflake'} text-[10px]`}></i>
-                      <span className="text-[10px] font-black uppercase tracking-widest">
-                        {isHighGiro ? 'Alto Giro' : 'Baixo Giro'}
-                      </span>
                     </div>
                   </td>
                   <td className="px-8 py-5">

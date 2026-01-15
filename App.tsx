@@ -9,6 +9,7 @@ import BackupView from './components/BackupView';
 import WithdrawalView from './components/WithdrawalView';
 import Login from './components/Login';
 import ActionLogsView from './components/ActionLogsView';
+import InfoView from './components/InfoView';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<UserSession | null>(() => {
@@ -31,7 +32,7 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
   
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'withdrawals' | 'backup' | 'logs'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'withdrawals' | 'backup' | 'logs' | 'info'>('dashboard');
 
   useEffect(() => {
     localStorage.setItem('inventory_data', JSON.stringify(items));
@@ -85,7 +86,7 @@ const App: React.FC = () => {
   }, [items, addLog]);
 
   const handleDeleteItem = useCallback((id: string) => {
-    const item = items.find(i => i.id === id);
+    const item = items.find(id === id);
     if (window.confirm('Deseja realmente excluir este item?')) {
       setItems(prev => prev.filter(item => item.id !== id));
       if (item) addLog('Exclusão de Item', `Material removido: ${item.name}`);
@@ -173,6 +174,12 @@ const App: React.FC = () => {
               </button>
             )}
             <button 
+              onClick={() => setActiveTab('info')}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex-shrink-0 ${activeTab === 'info' ? 'bg-slate-700 shadow-sm text-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              <i className="fas fa-info-circle mr-1 md:mr-2"></i> <span className="hidden md:inline">Sobre</span>
+            </button>
+            <button 
               onClick={() => setActiveTab('backup')}
               className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex-shrink-0 ${activeTab === 'backup' ? 'bg-slate-700 shadow-sm text-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
             >
@@ -227,7 +234,6 @@ const App: React.FC = () => {
             </div>
             <InventoryTable 
               items={items} 
-              withdrawals={withdrawals}
               onUpdate={handleUpdateItem} 
               onDelete={handleDeleteItem}
               editable={isAdm}
@@ -248,6 +254,12 @@ const App: React.FC = () => {
         {activeTab === 'logs' && isAdm && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <ActionLogsView logs={logs} />
+          </div>
+        )}
+
+        {activeTab === 'info' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <InfoView />
           </div>
         )}
 
