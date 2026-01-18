@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { InventoryItem, WithdrawalRecord, UserSession, ActionLog } from './types';
-import { INITIAL_ITEMS } from './constants';
 import InventoryTable from './components/InventoryTable';
 import InventoryDashboard from './components/InventoryDashboard';
 import AIAssistant from './components/AIAssistant';
@@ -11,125 +11,114 @@ import Login from './components/Login';
 import ActionLogsView from './components/ActionLogsView';
 import InfoView from './components/InfoView';
 
+// Estas variáveis devem ser configuradas no Render como Environment Variables
+// SUPABASE_URL e SUPABASE_ANON_KEY
+const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 const App: React.FC = () => {
   const [session, setSession] = useState<UserSession | null>(() => {
     const saved = sessionStorage.getItem('user_session');
     return saved ? JSON.parse(saved) : null;
   });
 
-  const [items, setItems] = useState<InventoryItem[]>(() => {
-    const saved = localStorage.getItem('inventory_data');
-    return saved ? JSON.parse(saved) : INITIAL_ITEMS;
-  });
-
-  const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>(() => {
-    const saved = localStorage.getItem('withdrawal_records');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [logs, setLogs] = useState<ActionLog[]>(() => {
-    const saved = localStorage.getItem('action_logs');
-    return saved ? JSON.parse(saved) : [];
-  });
-  
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>([]);
+  const [logs, setLogs] = useState<ActionLog[]>([]);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'withdrawals' | 'backup' | 'logs' | 'info'>('dashboard');
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Efeito para salvar no localStorage (Fallback enquanto não há banco de dados)
-  useEffect(() => {
-    localStorage.setItem('inventory_data', JSON.stringify(items));
-  }, [items]);
+  // 1. Carregamento Inicial
+  const fetchData = async () => {
+    setLoading(true);
+    const { data: inv } = await supabase.from('inventory_items').select('*').order('name');
+    const { data: withdr } = await supabase.from('withdrawal_records').select('*').order('timestamp', { ascending: false }).limit(50);
+    const { data: actLogs } = await supabase.from('action_logs').select('*').order('timestamp', { ascending: false }).limit(50);
+    
+    if (inv) setItems(inv as any);
+    if (withdr) setWithdrawals(withdr as any);
+    if (actLogs) setLogs(actLogs as any);
+    setLoading(false);
+  };
 
-  useEffect(() => {
-    localStorage.setItem('withdrawal_records', JSON.stringify(withdrawals));
-  }, [withdrawals]);
-
-  useEffect(() => {
-    localStorage.setItem('action_logs', JSON.stringify(logs));
-  }, [logs]);
-
-  // Simulação de Sincronização Automática (Aqui entraria a chamada ao Banco de Dados)
   useEffect(() => {
     if (session) {
-      const syncInterval = setInterval(() => {
-        // setIsSyncing(true);
-        // Exemplo: fetch('/api/inventory').then(...)
-        // setTimeout(() => setIsSyncing(false), 1000);
-      }, 30000); // Tenta sincronizar a cada 30 segundos
-      return () => clearInterval(syncInterval);
+      fetchData();
+
+      // 2. Escuta Real-time do Supabase
+      const itemsSubscription = supabase
+        .channel('schema-db-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items' }, () => fetchData())
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'withdrawal_records' }, () => fetchData())
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'action_logs' }, () => fetchData())
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(itemsSubscription);
+      };
     }
   }, [session]);
 
-  const addLog = useCallback((action: string, details: string) => {
+  const addLog = useCallback(async (action: string, details: string) => {
     if (!session) return;
-    const newLog: ActionLog = {
-      id: Math.random().toString(36).substr(2, 9),
-      user: session.username,
+    await supabase.from('action_logs').insert([{
+      user_name: session.username,
       role: session.role,
       action,
-      details,
-      timestamp: new Date().toISOString()
-    };
-    setLogs(prev => [newLog, ...prev]);
+      details
+    }]);
   }, [session]);
 
-  const handleUpdateItem = useCallback((id: string, updates: Partial<InventoryItem>) => {
-    let logMsg = "";
-    setItems(prev => prev.map(item => {
-      if (item.id === id) {
-        const changes = Object.entries(updates).map(([key, value]) => {
-          const oldVal = item[key as keyof InventoryItem];
-          if (oldVal !== value) {
-            return `${key}: de "${oldVal}" para "${value}"`;
-          }
-          return null;
-        }).filter(Boolean);
+  const handleUpdateItem = useCallback(async (id: string, updates: Partial<InventoryItem>) => {
+    const { error } = await supabase
+      .from('inventory_items')
+      .update({ ...updates, last_updated: new Date().toISOString() })
+      .eq('id', id);
 
-        if (changes.length > 0) {
-          logMsg = `${item.name}: ${changes.join(', ')}`;
-        }
-        
-        return { ...item, ...updates, lastUpdated: new Date().toISOString() };
-      }
-      return item;
-    }));
-
-    if (logMsg) {
-      addLog('Atualização de Item', logMsg);
-    }
-  }, [addLog]);
-
-  const handleDeleteItem = useCallback((id: string) => {
-    const itemToDelete = items.find(i => i.id === id);
-    if (itemToDelete && window.confirm(`Deseja excluir "${itemToDelete.name}"?`)) {
-      setItems(prev => prev.filter(item => item.id !== id));
-      addLog('Exclusão de Item', `Material removido: ${itemToDelete.name}`);
+    if (!error) {
+      const item = items.find(i => i.id === id);
+      addLog('Atualização', `Item ${item?.name} alterado.`);
     }
   }, [items, addLog]);
 
-  const handleAddItem = () => {
-    const newItem: InventoryItem = {
-      id: Math.random().toString(36).substr(2, 9),
+  const handleDeleteItem = useCallback(async (id: string) => {
+    const itemToDelete = items.find(i => i.id === id);
+    if (itemToDelete && window.confirm(`Deseja excluir "${itemToDelete.name}"?`)) {
+      await supabase.from('inventory_items').delete().eq('id', id);
+      addLog('Exclusão', `Material removido: ${itemToDelete.name}`);
+    }
+  }, [items, addLog]);
+
+  const handleAddItem = async () => {
+    const { data } = await supabase.from('inventory_items').insert([{
       name: 'Novo Material',
       quantity: 0,
-      minStock: 1,
+      min_stock: 1,
       category: 'Outros',
-      unit: 'un',
-      lastUpdated: new Date().toISOString()
-    };
-    setItems(prev => [newItem, ...prev]);
-    addLog('Adição de Item', `Novo material: ${newItem.name}`);
-    setActiveTab('inventory');
+      unit: 'un'
+    }]).select();
+
+    if (data) {
+      addLog('Adição', `Novo material criado.`);
+      setActiveTab('inventory');
+    }
   };
 
-  const handleRegisterWithdrawal = (record: WithdrawalRecord) => {
-    setWithdrawals(prev => [record, ...prev]);
-    setItems(prev => prev.map(item => 
-      item.id === record.itemId 
-        ? { ...item, quantity: Math.max(0, item.quantity - record.quantity), lastUpdated: new Date().toISOString() }
-        : item
-    ));
-    addLog('Retirada', `${record.withdrawnBy} retirou ${record.quantity} un de ${record.itemName}`);
+  const handleRegisterWithdrawal = async (record: WithdrawalRecord) => {
+    // Registra a retirada
+    await supabase.from('withdrawal_records').insert([{
+      item_id: record.itemId,
+      item_name: record.itemName,
+      withdrawn_by: record.withdrawnBy,
+      quantity: record.quantity
+    }]);
+
+    // Atualiza o estoque
+    const item = items.find(i => i.id === record.itemId);
+    if (item) {
+      await handleUpdateItem(item.id, { quantity: Math.max(0, item.quantity - record.quantity) });
+    }
   };
 
   const handleLogout = () => {
@@ -142,6 +131,17 @@ const App: React.FC = () => {
       setSession(user);
       sessionStorage.setItem('user_session', JSON.stringify(user));
     }} />;
+  }
+
+  if (loading && items.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <i className="fas fa-circle-notch fa-spin text-4xl text-indigo-500"></i>
+          <p className="text-slate-400 font-bold animate-pulse">SINCRONIZANDO DADOS EM NUVEM...</p>
+        </div>
+      </div>
+    );
   }
 
   const isAdm = session.role === 'ADM';
@@ -158,7 +158,7 @@ const App: React.FC = () => {
               <h1 className="text-xl font-black bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">THESTOK</h1>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] uppercase text-slate-500 font-bold">{session.role}: {session.username}</span>
-                {isSyncing && <i className="fas fa-sync fa-spin text-[8px] text-indigo-400"></i>}
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               </div>
             </div>
           </div>
@@ -196,32 +196,42 @@ const App: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-6 py-10">
         {activeTab === 'dashboard' && (
-          <div className="space-y-8">
+          <div className="space-y-8 animate-in fade-in duration-500">
             <InventoryDashboard items={items} />
             <AIAssistant items={items} />
           </div>
         )}
 
         {activeTab === 'inventory' && (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-in fade-in duration-500">
             <div className="text-left">
-              <h2 className="text-3xl font-black">Estoque</h2>
-              <p className="text-slate-400">Gerenciamento de materiais disponíveis.</p>
+              <h2 className="text-3xl font-black">Estoque em Tempo Real</h2>
+              <p className="text-slate-400">Alterações aqui são refletidas para todos os usuários imediatamente.</p>
             </div>
             <InventoryTable items={items} onUpdate={handleUpdateItem} onDelete={handleDeleteItem} editable={isAdm} />
           </div>
         )}
 
         {activeTab === 'withdrawals' && (
-          <WithdrawalView items={items} records={withdrawals} onWithdraw={handleRegisterWithdrawal} />
+          <div className="animate-in fade-in duration-500">
+            <WithdrawalView items={items} records={withdrawals} onWithdraw={handleRegisterWithdrawal} />
+          </div>
         )}
 
-        {activeTab === 'logs' && <ActionLogsView logs={logs} />}
+        {activeTab === 'logs' && (
+          <div className="animate-in fade-in duration-500">
+            <ActionLogsView logs={logs} />
+          </div>
+        )}
 
-        {activeTab === 'backup' && <BackupView items={items} setItems={setItems} allowImport={isAdm} />}
+        {activeTab === 'backup' && (
+          <div className="animate-in fade-in duration-500">
+            <BackupView items={items} setItems={() => fetchData()} allowImport={isAdm} />
+          </div>
+        )}
 
         <footer className="mt-20 py-10 border-t border-slate-900 text-slate-600 text-center text-xs font-medium uppercase tracking-widest">
-          <p>© 2024 TheStok • Sincronização Inteligente</p>
+          <p>© 2024 TheStok • Sincronizado via Cloud Supabase</p>
         </footer>
       </main>
     </div>
