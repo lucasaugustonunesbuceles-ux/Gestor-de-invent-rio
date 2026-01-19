@@ -39,32 +39,42 @@ const InventoryDashboard: React.FC<Props> = ({ items }) => {
     value: categoryCounts[cat]
   }));
 
+  const hasData = items.length > 0;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 transition-all">
+      {/* Gráfico de Barras */}
       <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 transition-colors flex flex-col h-[400px]">
         <h3 className="text-lg font-black text-white mb-6 flex items-center gap-3">
           <i className="fas fa-chart-bar text-indigo-500"></i>
           Saldo vs. Estoque Mínimo
         </h3>
         <div className="flex-1 w-full min-h-[300px]">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
-            <BarChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8', fontWeight: 'bold' }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} />
-              <Tooltip cursor={{ fill: '#1E293B' }} contentStyle={{ borderRadius: '16px', border: '1px solid #334155', backgroundColor: '#0F172A', color: '#F1F5F9' }} />
-              <Bar dataKey="quantidade" name="Saldo Atual" radius={[4, 4, 0, 0]}>
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.quantidade < entry.minimo ? '#f43f5e' : '#10b981'} />
-                ))}
-              </Bar>
-              <Bar dataKey="minimo" name="Estoque Mínimo" fill="#334155" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {hasData ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8', fontWeight: 'bold' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} />
+                <Tooltip cursor={{ fill: '#1E293B' }} contentStyle={{ borderRadius: '16px', border: '1px solid #334155', backgroundColor: '#0F172A', color: '#F1F5F9' }} />
+                <Bar dataKey="quantidade" name="Saldo Atual" radius={[4, 4, 0, 0]}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.quantidade < entry.minimo ? '#f43f5e' : '#10b981'} />
+                  ))}
+                </Bar>
+                <Bar dataKey="minimo" name="Estoque Mínimo" fill="#334155" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full flex items-center justify-center text-slate-600 font-bold uppercase text-xs tracking-widest border border-dashed border-slate-800 rounded-2xl">
+              Aguardando dados...
+            </div>
+          )}
         </div>
       </div>
 
       <div className="flex flex-col gap-6">
+        {/* KPIs Rápidos */}
         <div className="grid grid-cols-2 gap-4">
           <div className={`p-6 rounded-3xl border transition-all flex flex-col justify-center ${itemsBelowMin > 0 ? 'bg-rose-500/10 border-rose-500/20' : 'bg-slate-900 border-slate-800'}`}>
             <span className="text-rose-500 text-[10px] font-black uppercase tracking-widest mb-1">Atenção Reposição</span>
@@ -76,21 +86,26 @@ const InventoryDashboard: React.FC<Props> = ({ items }) => {
           </div>
         </div>
 
-        <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 flex-1 flex flex-col h-[200px]">
+        {/* Gráfico de Pizza */}
+        <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 flex-1 flex flex-col min-h-[220px]">
            <h3 className="text-lg font-black text-white mb-4 flex items-center gap-3">
             <i className="fas fa-chart-pie text-purple-500"></i> Ocupação por Categoria
           </h3>
-          <div className="flex items-center flex-1 min-h-[140px]">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={140}>
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={8} dataKey="value">
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#0F172A' }} />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="flex items-center flex-1 h-full">
+            <div className="w-1/2 h-full min-h-[140px]">
+              {hasData ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={8} dataKey="value">
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#0F172A' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : null}
+            </div>
             <div className="w-1/2 space-y-1">
                {pieData.map((entry, index) => (
                  <div key={index} className="flex items-center justify-between text-[10px] font-bold">
@@ -101,6 +116,7 @@ const InventoryDashboard: React.FC<Props> = ({ items }) => {
                     <span className="text-slate-100">{entry.value}</span>
                  </div>
                ))}
+               {!hasData && <span className="text-[9px] text-slate-600 font-bold uppercase">Sem categorias</span>}
             </div>
           </div>
         </div>
