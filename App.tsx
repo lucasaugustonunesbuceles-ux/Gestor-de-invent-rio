@@ -2,7 +2,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { InventoryItem, WithdrawalRecord, UserSession, ActionLog } from './types';
-import { INITIAL_ITEMS } from './constants';
 import InventoryTable from './components/InventoryTable';
 import InventoryDashboard from './components/InventoryDashboard';
 import AIAssistant from './components/AIAssistant';
@@ -10,18 +9,11 @@ import BackupView from './components/BackupView';
 import WithdrawalView from './components/WithdrawalView';
 import Login from './components/Login';
 import ActionLogsView from './components/ActionLogsView';
-import InfoView from './components/InfoView';
 
 const getConfig = () => {
-  const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-  const envKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
   const localUrl = localStorage.getItem('supabase_url') || '';
   const localKey = localStorage.getItem('supabase_key') || '';
-  
-  return {
-    url: envUrl || localUrl,
-    key: envKey || localKey
-  };
+  return { url: localUrl, key: localKey };
 };
 
 const App: React.FC = () => {
@@ -34,14 +26,12 @@ const App: React.FC = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>([]);
   const [logs, setLogs] = useState<ActionLog[]>([]);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'withdrawals' | 'backup' | 'logs' | 'info'>('dashboard');
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'inventory' | 'withdrawals' | 'backup' | 'logs'>('dashboard');
+  const [loading, setLoading] = useState(false);
 
   const supabase = useMemo(() => {
     if (!config.url || !config.key) return null;
     try {
-      const url = new URL(config.url);
-      if (!url.protocol.startsWith('http')) return null;
       return createClient(config.url, config.key);
     } catch (e) {
       return null;
@@ -100,7 +90,7 @@ const App: React.FC = () => {
         })));
       }
     } catch (err) {
-      console.error("Erro Supabase:", err);
+      console.error("Erro ao sincronizar:", err);
     } finally {
       setLoading(false);
     }
@@ -109,21 +99,18 @@ const App: React.FC = () => {
   useEffect(() => {
     if (session && supabase) {
       fetchData();
-      const subscription = supabase
-        .channel('db-changes')
+      const channel = supabase.channel('realtime_stock')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_items' }, () => fetchData())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_records' }, () => fetchData())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'action_logs' }, () => fetchData())
         .subscribe();
-
-      return () => { supabase.removeChannel(subscription); };
+      return () => { supabase.removeChannel(channel); };
     }
   }, [session, supabase]);
 
   const handleAddItem = async () => {
     if (!supabase) return;
     const { error } = await supabase.from('inventory_items').insert([{
-      name: 'Novo Item',
+      name: 'Novo Material',
       quantity: 0,
       min_stock: 1,
       category: 'Outros',
@@ -131,32 +118,58 @@ const App: React.FC = () => {
     }]);
 
     if (error) {
-      alert("Erro ao adicionar: Verifique se as permissões (RLS) estão habilitadas no seu banco de dados Supabase.");
+      alert("ERRO DE PERMISSÃO: O Supabase bloqueou a inserção. Vá em 'Config' e siga as instruções de 'Configurar Banco (SQL)'.");
     } else {
-      addLog('Adição', 'Criou um novo item no estoque.');
-      if (activeTab !== 'inventory') setActiveTab('inventory');
+      await addLog('Adição', 'Inseriu novo item no estoque.');
+      fetchData();
+      setActiveTab('inventory');
+    }
+  };
+
+  const handleUpdateItem = async (id: string, updates: Partial<InventoryItem>) => {
+    if (!supabase) return;
+    const dbUp: any = {};
+    if (updates.name !== undefined) dbUp.name = updates.name;
+    if (updates.quantity !== undefined) dbUp.quantity = updates.quantity;
+    if (updates.minStock !== undefined) dbUp.min_stock = updates.minStock;
+    if (updates.category !== undefined) dbUp.category = updates.category;
+
+    const { error } = await supabase.from('inventory_items').update(dbUp).eq('id', id);
+    if (!error) {
+      fetchData();
+    } else {
+      alert("Erro ao atualizar: Verifique suas permissões de RLS no Supabase.");
+    }
+  };
+
+  const handleDeleteItem = async (id: string) => {
+    if (!supabase || !window.confirm('Excluir permanentemente este item?')) return;
+    const { error } = await supabase.from('inventory_items').delete().eq('id', id);
+    if (!error) {
+      addLog('Exclusão', 'Removeu material do sistema.');
+      fetchData();
+    } else {
+      alert("Erro ao excluir: Verifique suas permissões de RLS no Supabase.");
     }
   };
 
   const handleImportData = async (importedItems: InventoryItem[]) => {
-    if (!supabase || !window.confirm(`Deseja importar ${importedItems.length} itens? Isso pode gerar duplicatas se os nomes forem iguais.`)) return;
-    
+    if (!supabase) return;
     setLoading(true);
     const dbItems = importedItems.map(item => ({
       name: item.name,
       quantity: item.quantity,
-      min_stock: item.minStock,
-      category: item.category,
-      unit: item.unit
+      min_stock: item.minStock || 1,
+      category: item.category || 'Outros',
+      unit: item.unit || 'un'
     }));
 
     const { error } = await supabase.from('inventory_items').insert(dbItems);
-    
     if (error) {
       alert("Erro na importação: " + error.message);
     } else {
-      addLog('Importação', `Importou ${importedItems.length} materiais via arquivo.`);
-      alert("Dados importados com sucesso!");
+      addLog('Importação', `Carregou ${importedItems.length} materiais.`);
+      alert("Importação concluída!");
       fetchData();
     }
     setLoading(false);
@@ -174,11 +187,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('user_session');
-    setSession(null);
-  };
-
   if (!supabase) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
@@ -186,12 +194,11 @@ const App: React.FC = () => {
           <div className="w-16 h-16 bg-indigo-500/10 text-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <i className="fas fa-plug text-2xl"></i>
           </div>
-          <h1 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">Conectar Supabase</h1>
-          <p className="text-slate-400 text-sm mb-8 leading-relaxed">Insira as credenciais do seu projeto para ativar a sincronização na nuvem.</p>
+          <h1 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">Conectar ao Banco</h1>
           <form onSubmit={handleManualConfig} className="space-y-4">
-            <input name="url" placeholder="Project URL" required defaultValue={config.url} className="w-full bg-slate-800 border-none rounded-2xl py-4 px-6 text-white outline-none focus:ring-2 focus:ring-indigo-500/50" />
-            <input name="key" type="password" placeholder="Anon Public Key" required defaultValue={config.key} className="w-full bg-slate-800 border-none rounded-2xl py-4 px-6 text-white outline-none focus:ring-2 focus:ring-indigo-500/50" />
-            <button className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-lg transition-all active:scale-95">CONECTAR AGORA</button>
+            <input name="url" placeholder="Supabase Project URL" required className="w-full bg-slate-800 border-none rounded-2xl py-4 px-6 text-white outline-none focus:ring-2 focus:ring-indigo-500/50" />
+            <input name="key" type="password" placeholder="API Key (Anon Public)" required className="w-full bg-slate-800 border-none rounded-2xl py-4 px-6 text-white outline-none focus:ring-2 focus:ring-indigo-500/50" />
+            <button className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-lg transition-all active:scale-95">SALVAR E CONECTAR</button>
           </form>
         </div>
       </div>
@@ -210,16 +217,22 @@ const App: React.FC = () => {
             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg"><i className="fas fa-layer-group text-xl"></i></div>
             <h1 className="text-xl font-black bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">THESTOK</h1>
           </div>
-          <div className="flex items-center gap-1 bg-slate-800/50 p-1 rounded-2xl">
+          
+          <div className="flex items-center gap-1 bg-slate-800/50 p-1 rounded-2xl overflow-x-auto">
             <button onClick={() => setActiveTab('dashboard')} className={`px-4 py-2 rounded-xl text-sm font-semibold ${activeTab === 'dashboard' ? 'bg-slate-700 text-indigo-400' : 'text-slate-500'}`}>Painel</button>
-            <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-xl text-sm font-semibold ${activeTab === 'inventory' ? 'bg-slate-700 text-indigo-400' : 'text-slate-500'}`}>Itens</button>
-            <button onClick={() => setActiveTab('withdrawals')} className={`px-4 py-2 rounded-xl text-sm font-semibold ${activeTab === 'withdrawals' ? 'bg-slate-700 text-indigo-400' : 'text-slate-500'}`}>Retiradas</button>
+            <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-xl text-sm font-semibold ${activeTab === 'inventory' ? 'bg-slate-700 text-indigo-400' : 'text-slate-500'}`}>Estoque</button>
+            <button onClick={() => setActiveTab('withdrawals')} className={`px-4 py-2 rounded-xl text-sm font-semibold ${activeTab === 'withdrawals' ? 'bg-slate-700 text-indigo-400' : 'text-slate-500'}`}>Saídas</button>
             <button onClick={() => setActiveTab('logs')} className={`px-4 py-2 rounded-xl text-sm font-semibold ${activeTab === 'logs' ? 'bg-slate-700 text-indigo-400' : 'text-slate-500'}`}>Logs</button>
             <button onClick={() => setActiveTab('backup')} className={`px-4 py-2 rounded-xl text-sm font-semibold ${activeTab === 'backup' ? 'bg-slate-700 text-indigo-400' : 'text-slate-500'}`}>Config</button>
           </div>
+
           <div className="flex items-center gap-3">
-            {isAdm && <button onClick={handleAddItem} className="hidden lg:block px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all"><i className="fas fa-plus mr-2"></i> Novo</button>}
-            <button onClick={handleLogout} className="p-2.5 text-slate-400 hover:text-red-400"><i className="fas fa-sign-out-alt"></i></button>
+            {isAdm && (
+              <button onClick={handleAddItem} className="hidden md:flex px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl items-center gap-2">
+                <i className="fas fa-plus"></i> Novo
+              </button>
+            )}
+            <button onClick={() => { sessionStorage.clear(); setSession(null); }} className="p-2.5 text-slate-400 hover:text-red-400"><i className="fas fa-sign-out-alt"></i></button>
           </div>
         </div>
       </nav>
@@ -228,28 +241,15 @@ const App: React.FC = () => {
         {activeTab === 'dashboard' && <><InventoryDashboard items={items} /><AIAssistant items={items} /></>}
         {activeTab === 'inventory' && (
           <div className="space-y-6">
-            <div className="flex justify-between items-end">
-              <div><h2 className="text-3xl font-black">Estoque Sincronizado</h2><p className="text-slate-400">Dados reais na nuvem.</p></div>
-              {isAdm && <button onClick={handleAddItem} className="px-6 py-3 bg-indigo-600 rounded-2xl font-bold hover:bg-indigo-700"><i className="fas fa-plus mr-2"></i> Adicionar Material</button>}
+            <div className="flex justify-between items-center">
+              <div><h2 className="text-3xl font-black">Materiais em Nuvem</h2><p className="text-slate-400">Dados reais.</p></div>
+              {isAdm && (
+                <button onClick={handleAddItem} className="px-6 py-3 bg-indigo-600 rounded-2xl font-bold hover:bg-indigo-700 flex items-center gap-2">
+                  <i className="fas fa-plus"></i> Novo Material
+                </button>
+              )}
             </div>
-            <InventoryTable 
-              items={items} 
-              onUpdate={async (id, up) => {
-                if (!supabase) return;
-                const dbUp: any = {};
-                if (up.name) dbUp.name = up.name;
-                if (up.quantity !== undefined) dbUp.quantity = up.quantity;
-                if (up.minStock !== undefined) dbUp.min_stock = up.minStock;
-                if (up.category) dbUp.category = up.category;
-                await supabase.from('inventory_items').update(dbUp).eq('id', id);
-              }} 
-              onDelete={async (id) => {
-                if (!supabase || !window.confirm('Excluir permanentemente?')) return;
-                await supabase.from('inventory_items').delete().eq('id', id);
-                addLog('Exclusão', 'Removeu um item do estoque.');
-              }} 
-              editable={isAdm} 
-            />
+            <InventoryTable items={items} onUpdate={handleUpdateItem} onDelete={handleDeleteItem} editable={isAdm} />
           </div>
         )}
         {activeTab === 'withdrawals' && (
@@ -258,26 +258,29 @@ const App: React.FC = () => {
             records={withdrawals} 
             onWithdraw={async (rec) => {
               if (!supabase) return;
-              await supabase.from('withdrawal_records').insert([{ item_id: rec.itemId, item_name: rec.itemName, withdrawn_by: rec.withdrawnBy, quantity: rec.quantity }]);
-              const item = items.find(i => i.id === rec.itemId);
-              if (item) await supabase.from('inventory_items').update({ quantity: Math.max(0, item.quantity - rec.quantity) }).eq('id', item.id);
-              addLog('Retirada', `Registrou a saída de ${rec.quantity} de ${rec.itemName}.`);
+              const { error } = await supabase.from('withdrawal_records').insert([{ 
+                item_id: rec.itemId, item_name: rec.itemName, withdrawn_by: rec.withdrawnBy, quantity: rec.quantity 
+              }]);
+              if (!error) {
+                const item = items.find(i => i.id === rec.itemId);
+                if (item) await handleUpdateItem(item.id, { quantity: Math.max(0, item.quantity - rec.quantity) });
+                addLog('Retirada', `Retirada de ${rec.quantity} unidades de ${rec.itemName}.`);
+                fetchData();
+              } else {
+                alert("Erro ao registrar retirada. Verifique as permissões de RLS.");
+              }
             }} 
           />
         )}
         {activeTab === 'logs' && <ActionLogsView logs={logs} />}
         {activeTab === 'backup' && (
           <div className="space-y-6">
-            <BackupView 
-              items={items} 
-              setItems={fetchData} 
-              allowImport={isAdm} 
-              onImport={handleImportData} 
-            />
-            <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="w-full py-4 text-red-500/50 hover:text-red-500 font-black text-xs uppercase tracking-widest">Resetar Conexão com Supabase</button>
+            <BackupView items={items} setItems={fetchData} allowImport={isAdm} onImport={handleImportData} />
+            <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="w-full py-4 text-red-500/50 hover:text-red-500 font-black text-xs uppercase tracking-widest border border-dashed border-red-500/20 rounded-2xl">Resetar Tudo</button>
           </div>
         )}
       </main>
+      {loading && <div className="fixed bottom-6 right-6 bg-indigo-600 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 animate-bounce"><i className="fas fa-sync fa-spin"></i><span className="text-xs font-black uppercase">Sincronizando...</span></div>}
     </div>
   );
 };
