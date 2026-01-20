@@ -1,20 +1,36 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# 🚀 TheStok - Deploy no Render
 
-This contains everything you need to run your app locally.
+Este guia contém as configurações exatas para hospedar o projeto no **Render**.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1nWweTz5JjXjWuVQ-NRj-c2Z3CI2E7Glb
+## ⚙️ Configurações Manuais (Static Site)
 
-## Run Locally
+Se você for criar o serviço manualmente no painel do Render, use estes parâmetros:
 
-**Prerequisites:**  Node.js
+- **Build Command:** `npm install && npm run build`
+- **Publish Directory:** `dist`
+- **Node Version:** `18` ou superior
 
+## 🔐 Variáveis de Ambiente
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Para que a Inteligência Artificial (Gemini) funcione, você **PRECISA** adicionar esta variável no painel do Render (aba *Environment*):
+
+| Key | Value |
+| :--- | :--- |
+| `API_KEY` | *Sua_Chave_do_Google_Gemini* |
+
+> **Nota:** Não é necessário o prefixo `VITE_` pois configuramos o `vite.config.ts` para ler a chave diretamente.
+
+## 🛠️ Deploy via Blueprint (Recomendado)
+
+O projeto já contém um arquivo `render.yaml`. Para usar:
+1. Vá em **New +** no Render.
+2. Selecione **Blueprint**.
+3. Conecte seu repositório.
+4. O Render aplicará todas as configurações (Build, Dist, Routes) automaticamente.
+
+## 🔄 Solução de Erros (RLS Supabase)
+Se o app mostrar erros de permissão após o deploy:
+1. Vá na aba **Config** dentro do app.
+2. Copie o **Script SQL**.
+3. Execute no **SQL Editor** do seu projeto no Supabase.
